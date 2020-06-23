@@ -1,0 +1,172 @@
+---
+title: "Assignment |Reproducible Research Week 2"
+author: "Juan M Sanchez"
+date: "6/22/2020"
+output: html_document
+---
+
+### QUESTION 1| Code for reading in the dataset and/or processing the data. 
+
+```{r echo=FALSE}
+setwd("/Users/juan7sanchez/Desktop/BI/data")
+```
+I read and called data frame 'act'. 
+
+```{r}
+act<- read.csv(file='activity.csv', header = TRUE)
+```
+
+I checked data frame and ajust variable class: 
+
+```{r}
+str(act)
+act$steps <- as.numeric(as.character(act$steps))
+act$interval <- as.numeric(as.character(act$interval))
+act$date <- as.Date(act$date)
+```
+
+### QUESTION 2| Histogram of the total number of steps taken each day.
+
+I used the following packages. "In this case I hide the result/message to avoid unnesasary data": 
+
+```{r warning=FALSE,message=FALSE}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+First, I getting the information per day by groupon by "date" and summurize per "steps".
+
+```{r}
+byday<- act %>% group_by(date) %>%
+      summarize(steps=sum(steps))
+
+```
+
+Then, I plotted the graphic with 'date' variable on the X and 'steps' on the Y axis. 
+
+```{r}
+barplot(byday$steps,names.arg=byday$date, xlab = "Days", ylab = "Steps", main = "Number of steps taken each day",)
+```
+
+### QUESTION 3| Mean and median number of steps taken each day.
+
+Using the 'byday' data frame created on question 2, we can calculate mean and median of steps per day:   
+
+```{r}
+mean(byday$steps,na.rm = TRUE)
+median(byday$steps,na.rm = TRUE)
+```
+### QUESTION 4 | Time series plot of the average number of steps taken.
+
+First, I getting the average steps per day (mean) by groupon by "date" and summurize per "steps": 
+```{r}
+meanday<- act %>% group_by(date=floor_date(date, "day")) %>%
+      summarise(steps=mean(steps))
+```
+I used ggplot2 to plot a time series graphic showing the mean steps per day:  
+
+```{r}
+tseries <- ggplot(meanday, aes(x=date, y=steps))+
+   geom_line(color="#69b3a2")+ 
+   geom_point()+
+   xlab("Days")+
+   ylab("Steps")+
+   ggtitle("Average number of steps taken each day") 
+tseries
+```
+
+### QUESTION 5 | The 5-minute interval that, on average, contains the maximum number of steps.
+
+Again, I used dplyr package to group steps by intervals and see the average number of steps of each one. Then I filter:  
+```{r}
+inter<- act %>% 
+      filter(steps, interval) %>% 
+      group_by(interval) %>%
+      summarise(steps=mean(steps)) %>%
+      arrange(desc(steps))
+     
+inter[1,]
+```
+### QUESTION 6 | Code to describe and show a strategy for imputing missing data.
+
+First, launch "mice" Packages.
+ 
+```{r warning=FALSE,message=FALSE} 
+library(mice)
+```
+Then, I run the mice function to impute values for missing numbers and check the 3 different imputation options to see is the imputaiton that makes more sence. 
+
+```{r} 
+impute <- mice(act[,1:3], m=3, seed = 123)
+```
+
+After that, I replaced the NA for the imputation values and compare the new data set act2, with the origina act. 
+
+```{r} 
+act2<- complete(impute,1)
+summary(act2)
+summary(act) 
+``` 
+
+Finally, we see above that act2 does not contain NA values. Below I plot a graph showing the  imputation values in a different color.
+
+```{r} 
+xyplot(impute, steps~date | .imp, pch = 20, cex = 1.2) 
+``` 
+
+
+### QUESTION 7 | Histogram of the total number of steps taken each day after missing values are imputed.
+
+I created a new vector "baday2" with no mission values "taken the new data frame act2". Then I grouped it by 'date' and sumaridez by 'steps'.    
+```{r}
+byday2 <- act2 %>% group_by(date) %>% 
+           summarize(steps=sum(steps))
+```
+Create a new graph with no NA values:  
+
+```{r}           
+barplot(byday2$steps,names.arg=byday2$date, xlab = "Days", ylab = "Steps", main = "Number of steps taken each day",)          
+```
+### QUESTION 8 | Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends.
+
+```{r}   
+act2$date <- as.Date(act2$date)
+act2$steps <- as.numeric(as.character(act2$steps))
+act2$interval <- as.numeric(as.character(act2$interval))
+```
+
+First, I created a new variable called wDay with the two levels ('weekend', 'weekday').
+
+```{r}   
+weekdays1 <- c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+act2$wDay <- factor((weekdays(act2$date) %in% weekdays1), levels=c(FALSE, TRUE), labels=c('weekend', 'weekday')) 
+```
+Then, I group the data by 'interval' and summarise by 'steps'.
+
+```{r}   
+alldays<- act2 %>% 
+      group_by(interval, wDay) %>%
+      summarise(steps=mean(steps)) 
+```
+Finally, I plotted a 2 graphic to compare 'weekend' and 'weekday' intervals.
+```{r} 
+wdayplot <- ggplot(alldays, aes(x=interval, y=steps)) + 
+   geom_line(color="#69b3a2") + 
+   geom_point()+
+   facet_grid(.~wDay)+ 
+   xlab("Intervals")+
+   ylab("Steps")+
+   ggtitle("Average weekdays vs. weekedns steps per interval")  
+
+wdayplot
+
+```
+
+
+
+            
+
+
+
+
